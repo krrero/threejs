@@ -3,19 +3,36 @@ import {
   Color,
   WebGLRenderer,
   PerspectiveCamera,
-  LineBasicMaterial,
-  Vector3,
-  BufferGeometry,
-  Line,
+  Mesh,
+  MeshPhongMaterial,
+  DirectionalLight,
+  BoxGeometry,
 } from 'three';
 
 export default class App {
-  constructor() {}
+  constructor() {
+    this.time = 1;
+    this.cubes = [];
+  }
 
   init() {
     this.createScene();
     this.createCamera();
-    this.drawLine();
+
+    const boxWidth = 1;
+    const boxHeight = 1;
+    const boxDepth = 1;
+    const geometry = new BoxGeometry(boxWidth, boxHeight, boxDepth);
+
+    this.cubes = [
+      this.makeCube(geometry, 0x44aa88, 0),
+      this.makeCube(geometry, 0x8844aa, -2),
+      this.makeCube(geometry, 0xaa8844, 2),
+    ];
+
+    this.addLight();
+
+    this.animate();
   }
 
   createScene() {
@@ -29,11 +46,14 @@ export default class App {
   }
 
   createCamera() {
-    this.camera = new PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-    );
-    this.camera.position.set(0, 0, 100);
+    const fov = 45;
+    const aspect = window.innerWidth / window.innerHeight;
+    const near = 0.1;
+    const far = 5;
+
+    this.camera = new PerspectiveCamera(fov, aspect, near, far);
+    // this.camera.position.set(0, 0, 100);
+    this.camera.position.z = 3;
 
     this.scene.add(this.camera);
   }
@@ -41,21 +61,34 @@ export default class App {
   animate() {
     this.renderer.render(this.scene, this.camera);
 
+    this.time += 0.01;
+
+    this.cubes.forEach((cube, ndx) => {
+      const speed = 1 + ndx * 0.1;
+      const rot = this.time * speed;
+      cube.rotation.x = rot;
+      cube.rotation.y = rot;
+    });
+
     requestAnimationFrame(this.animate.bind(this));
   }
 
-  drawLine() {
-    const material = new LineBasicMaterial({ color: 0x0000ff });
-    const points = [];
+  makeCube(geometry, color, x) {
+    const material = new MeshPhongMaterial({ color });
 
-    points.push(new Vector3(-10, 0, 0));
-    points.push(new Vector3(0, 10, 0));
-    points.push(new Vector3(10, 0, 0));
+    const cube = new Mesh(geometry, material);
+    this.scene.add(cube);
 
-    const geometry = new BufferGeometry().setFromPoints(points);
-    const line = new Line(geometry, material);
+    cube.position.x = x;
 
-    this.scene.add(line);
-    this.renderer.render(this.scene, this.camera);
+    return cube;
+  }
+
+  addLight() {
+    const color = 0xffffff;
+    const intensity = 1;
+    const light = new DirectionalLight(color, intensity);
+    light.position.set(-1, 2, 4);
+    this.scene.add(light);
   }
 }
