@@ -15,9 +15,13 @@ export default class App {
   constructor() {
     this.DATA = null;
     this.heights = [];
-    // this.mesh = null;
+    this.mesh = null;
     this.geometry = null;
     this.renderer = null;
+
+    this.ACTX = null;
+    this.ANALYSER = null;
+    this.SOURCE = null;
 
     this.frecuencySamples = 512; // Y resolution
     this.timeSamples = 1200; // x resolution
@@ -34,6 +38,14 @@ export default class App {
 
   init() {
     this.DATA = new Uint8Array(this.frecuencySamples);
+    this.ACTX = new AudioContext();
+    this.ANALYSER = this.ACTX.createAnalyser();
+    this.ANALYSER.fftSize = 4 * this.frecuencySamples;
+    this.ANALYSER.smoothingTimeConstant = 0.5;
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: { echoCancellation: false } })
+      .then((stream) => this.processAudio(stream));
 
     this.createScene();
     this.createCamera();
@@ -55,8 +67,8 @@ export default class App {
 
   createMaterial() {
     let material = new MeshBasicMaterial({ color: '#433F81' });
-    let mesh = new Mesh(this.geometry, material);
-    this.scene.add(mesh);
+    this.mesh = new Mesh(this.geometry, material);
+    this.scene.add(this.mesh);
   }
 
   createScene() {
@@ -79,18 +91,23 @@ export default class App {
   createGeometry() {
     let indices = [];
     let vertices = [];
+    let yPowMax = Math.log(this.ySize);
+    let yBase = Math.E;
 
     this.geometry = new BufferGeometry();
 
     for (let i = 0; i <= this.xSegments; i++) {
       let x = i * this.xSegmentSize - this.xHalfSize;
       for (let j = 0; j <= this.ySegments; j++) {
-        let y = j * this.ySegmentSize - this.yHalfsize;
+        let power = ((this.ySegments - j) / this.ySegments) * yPowMax;
+        let y = -Math.pow(yBase, power) + this.yHalfsize + 1;
 
         vertices.push(x, y, 0);
-        this.heights.push(Math.random() * 255.0); // for now our mesh is flat, so heights are zero
+        this.heights.push(0); // for now our mesh is flat, so heights are zero
       }
     }
+
+    this.heights = new Uint8Array(this.heights);
 
     this.geometry.setAttribute(
       'position',
@@ -406,17 +423,41 @@ export default class App {
       fragmentShader: fShader.text,
     });
 
-    let mesh = new Mesh(this.geometry, material);
+    this.mesh = new Mesh(this.geometry, material);
 
     // mesh.geometry.computeFaceNormals();
-    mesh.geometry.computeVertexNormals();
+    this.mesh.geometry.computeVertexNormals();
 
-    this.scene.add(mesh);
+    this.scene.add(this.mesh);
   }
 
   animate() {
-    this.renderer.render(this.scene, this.camera);
+    requestAnimationFrame(this.animate.bind(this));
+    this.render();
+  }
 
-    // requestAnimationFrame(this.animate.bind(this));
+  render() {
+    this.updateGeometry();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  updateGeometry() {
+    this.ANALYSER.getByteFrequencyData(this.DATA);
+    // crypto.getRandomValues(this.DATA);
+    let start_val = this.frecuencySamples + 1;
+    let end_val = this.nVertices - start_val;
+
+    this.heights.copyWithin(0, start_val, this.nVertices + 1);
+    this.heights.set(this.DATA, end_val - start_val);
+
+    this.mesh.geometry.setAttribute(
+      'displacement',
+      new Uint8BufferAttribute(this.heights, 1),
+    );
+  }
+
+  processAudio(stream) {
+    this.SOURCE = this.ACTX.createMediaStreamSource(stream);
+    this.SOURCE.connect(this.ANALYSER);
   }
 }
