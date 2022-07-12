@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="x-shader/x-vertex" id="vertexshader">
+      attribute float displacement;
+      uniform vec3 vLut[256];
+      varying vec3 vColor;
+
+      void main(){
+        int index = int(displacement);
+        vColor = vLut[index];
+        vec3 newPosition = position + normal * displacement / 25.5;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition,1.0);
+      }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentshader">
+      varying vec3 vColor;
+
+      void main(){
+        gl_FragColor = vec4(vColor,1.0);
+      }
+    </script>
+    <script type="x-shader/x-vertex" id="vertexshader">
+      attribute float displacement;
+      uniform vec3 vLut[1];
+      varying vec3 vColor;
+
+      void main(){
+        vColor = vLut[0];
+        vec3 newPosition = position + normal*displacement/25.5;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition,1.0);
+      }
+    </script>
+  </body>
+</html>
